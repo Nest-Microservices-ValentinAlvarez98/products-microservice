@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaClient } from '@prisma/client';
 import { PaginationDto } from 'src/common';
 import { Product } from './entities/product.entity';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
@@ -32,7 +33,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     const totalProducts = await this.product.count({ where: { available: true } });
     const lastPage = Math.ceil(totalProducts / limit);
 
-    if (page > lastPage) throw new NotFoundException(`Page ${page} not found`);
+    if (page > lastPage) throw {
+      message: `Page ${page} not found`,
+      statusCode: HttpStatus.NOT_FOUND,
+    };
 
     return {
       data: await this.product.findMany({
@@ -58,7 +62,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       }
     });
 
-    if (!product) throw new NotFoundException(`Product with id ${id} not found`);
+    if (!product) throw {
+      message: `Product with id ${id} not found`,
+      status: HttpStatus.NOT_FOUND,
+    };
 
     return product;
 
@@ -68,7 +75,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
     const { id: __, ...data } = updateProductDto;
 
-    if (!updateProductDto.name && !updateProductDto.price) throw new BadRequestException('Nothing to update');
+    if (!updateProductDto.name && !updateProductDto.price) throw {
+      message: 'At least one field must be provided',
+      status: HttpStatus.BAD_REQUEST,
+    };
 
     await this.findOne(id);
 
