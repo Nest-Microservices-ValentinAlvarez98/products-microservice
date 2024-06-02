@@ -16,7 +16,14 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     this.logger.log('Connected to the database');
   }
 
-  async create(createProductDto: CreateProductDto): Promise<Product> {
+  async create(createProductDto: CreateProductDto) {
+
+    if (createProductDto.price === 1) {
+      throw new RpcException({
+        message: 'Price cannot be 1',
+        statusCode: HttpStatus.BAD_REQUEST,
+      })
+    }
 
     const product = await this.product.create({
       data: createProductDto
@@ -33,10 +40,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     const totalProducts = await this.product.count({ where: { available: true } });
     const lastPage = Math.ceil(totalProducts / limit);
 
-    if (page > lastPage) throw {
+    if (page > lastPage) throw new RpcException({
       message: `Page ${page} not found`,
-      statusCode: HttpStatus.NOT_FOUND,
-    };
+      statusCode: HttpStatus.BAD_REQUEST,
+    })
 
     return {
       data: await this.product.findMany({
@@ -62,10 +69,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       }
     });
 
-    if (!product) throw {
-      message: `Product with id ${id} not found`,
-      status: HttpStatus.NOT_FOUND,
-    };
+    if (!product) throw new RpcException({
+      message: 'Product not found',
+      statusCode: HttpStatus.NOT_FOUND,
+    });
 
     return product;
 
@@ -75,10 +82,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
     const { id: __, ...data } = updateProductDto;
 
-    if (!updateProductDto.name && !updateProductDto.price) throw {
-      message: 'At least one field must be provided',
-      status: HttpStatus.BAD_REQUEST,
-    };
+    if (!updateProductDto.name && !updateProductDto.price) throw new RpcException({
+      message: 'You must provide at least one field to update',
+      statusCode: HttpStatus.BAD_REQUEST,
+    });
 
     await this.findOne(id);
 
@@ -111,6 +118,28 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
     return product;
 
+
+  }
+
+  async validateProducts(ids: number[]) {
+
+    // Se eliminan los duplicados por si se envian ids repetidos, por ejemplo, de distintos talles de un mismo producto
+    ids = Array.from(new Set(ids));
+
+    const products = await this.product.findMany({
+      where: {
+        id: {
+          in: ids
+        }
+      }
+    })
+
+    if (products.length !== ids.length) throw new RpcException({
+      message: 'Some products were not found',
+      statusCode: HttpStatus.NOT_FOUND,
+    })
+
+    return products;
 
   }
 
