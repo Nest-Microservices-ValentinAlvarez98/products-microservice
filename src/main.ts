@@ -6,9 +6,7 @@ import { envs } from './config';
 
 async function bootstrap() {
 
-  const logger = new Logger('main');
-
-  console.log(envs.natsServers)
+  const logger = new Logger('ProductsMs-Main');
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     AppModule,
